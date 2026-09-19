@@ -8,32 +8,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # فك الضغط والبحث الشامل عن الملفات ونقلها للمسار الرئيسي
-      - name: Unzip and Fix Paths
+      # 1. فك ضغط الملف ونقل محتوياته للمسار الرئيسي
+      - name: Unzip project
         run: |
           unzip wifi-focus.zip
-          # البحث عن مكان وجود ملف settings.gradle.kts أو build.gradle.kts ونقل محتوياته للمسار الرئيسي
-          BUILD_DIR=$(find . -name "build.gradle.kts" -exec dirname {} \; | head -n 1)
-          if [ -n "$BUILD_DIR" ] && [ "$BUILD_DIR" != "." ]; then
-            cp -r $BUILD_DIR/* . || true
-            cp -r $BUILD_DIR/.* . || true
+          if [ -d "wifi-focus" ]; then
+            cp -r wifi-focus/* . || true
+            cp -r wifi-focus/.* . || true
           fi
 
+      # 2. إجبار الخادم على استخدام جافا 17 (المتوافقة مع أندرويد ستوديو ومشروعك)
       - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '17'
 
-      # توليد ملف gradlew وتجهيز البيئة تلقائياً في حال فقدانه
-      - name: Generate Gradle Wrapper
-        run: |
-          gradle wrapper --gradle-version 8.2
-          chmod +x gradlew
+      # 3. إعداد واستخدام نسخة Gradle 8.2 المتوافقة مع كود مشروعك تماماً
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
 
+      # 4. إعطاء صلاحيات التشغيل
+      - name: Change permissions
+        run: chmod +x gradlew || true
+
+      # 5. بناء التطبيق باستخدام إصدار البيئة المستقرة
       - name: Build APK
-        run: ./gradlew assembleDebug
+        run: gradle assembleDebug
 
-      - uses: actions/upload-artifact@v4
+      # 6. رفع الـ APK النهائي الجاهز
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: my-app-apk
           path: "**/build/outputs/apk/debug/*.apk"
