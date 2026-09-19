@@ -8,17 +8,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # فك الضغط الذكي ونقل الملفات للمسار الرئيسي مباشرة
-      - name: Unzip project
+      # فك الضغط والبحث الشامل عن الملفات ونقلها للمسار الرئيسي
+      - name: Unzip and Fix Paths
         run: |
           unzip wifi-focus.zip
-          if [ -d "wifi-focus" ]; then
-            cp -r wifi-focus/* . || true
-            cp -r wifi-focus/.* . || true
-          fi
-          # بحث احتياطي إذا كان المجلد الداخلي باسم مختلف
-          if [ ! -f "gradlew" ]; then
-            find . -maxdepth 2 -name "gradlew" -exec dirname {} \; | head -n 1 | xargs -I {} cp -r {}/* . || true
+          # البحث عن مكان وجود ملف settings.gradle.kts أو build.gradle.kts ونقل محتوياته للمسار الرئيسي
+          BUILD_DIR=$(find . -name "build.gradle.kts" -exec dirname {} \; | head -n 1)
+          if [ -n "$BUILD_DIR" ] && [ "$BUILD_DIR" != "." ]; then
+            cp -r $BUILD_DIR/* . || true
+            cp -r $BUILD_DIR/.* . || true
           fi
 
       - uses: actions/setup-java@v4
@@ -26,9 +24,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Change permissions
+      # توليد ملف gradlew وتجهيز البيئة تلقائياً في حال فقدانه
+      - name: Generate Gradle Wrapper
         run: |
-          chmod +x gradlew || chmod +x ./gradlew
+          gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
 
       - name: Build APK
         run: ./gradlew assembleDebug
